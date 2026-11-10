@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: susmed_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-susmed}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-susmed}
+      POSTGRES_DB: ${POSTGRES_DB:-susmed}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - susmed_pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+
+volumes:
+  susmed_pgdata:

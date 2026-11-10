@@ -40,6 +40,93 @@ Desenvolver e avaliar um sistema computacional composto por um pipeline de engen
 - **Linguagem**: TypeScript
 - **Banco Local**: SQLite via WatermelonDB (offline-first)
 
+## Estratégia de Atualização de Dados
+
+| Fonte | Cadência real | Mecanismo no pipeline |
+|-------|---------------|------------------------|
+| ANVISA (produtos registrados) | Mensal (dado fechado no último dia do mês anterior) | ETL automatizável; disparo manual por enquanto |
+| CMED (lista de preços PMVG/PF/PMC) | Mensal | ETL automatizável; mesmo ciclo do ANVISA |
+| RENAME | Irregular, orientada a evento (nova edição via Portaria GM/MS, ex.: RENAME 2022 → RENAME 2024) | Disparo manual separado, sem cron |
+
+O orquestrador do ETL roda ANVISA + CMED no mesmo ciclo mensal (quando automatizado); RENAME fica fora desse ciclo, disparada manualmente sempre que uma nova Portaria for publicada. Por enquanto, todo o pipeline é disparado manualmente (`--run-now`); o modo agendado (`schedule`) já está previsto no orquestrador para ser ligado depois, sem reescrita.
+
+## Ambiente de Desenvolvimento e Distribuição
+
+Por ora, tudo roda local: PostgreSQL via `docker-compose`, API FastAPI em `localhost`, ETL disparado manualmente. A migração para uma nuvem free-tier (Render/Railway/Supabase) fica para quando o projeto estiver mais maduro.
+
+A distribuição de versões de teste do app usa build via Expo/EAS com link direto (internal distribution), sem restrição por e-mail por enquanto. Importante: como o backend é local, um build distribuído a testadores fora da rede local não consegue alcançar a API — será necessário expor a API via túnel (ngrok/Cloudflare Tunnel) durante a sessão de teste, ou já ter feito o deploy em nuvem antes de distribuir o link.
+
+## Como Rodar o Projeto
+
+### Pré-requisitos
+
+- **Python 3.11+**
+- **Docker Desktop** (com o backend WSL2 habilitado, no Windows) — usado só para rodar o PostgreSQL local
+- **Node.js 18+** e **npm**
+- **Expo Go** instalado no celular (Android/iOS), ou um emulador Android / simulador iOS configurado
+
+### Backend (ETL + API)
+
+```bash
+cd backend
+
+# 1. Variáveis de ambiente
+cp .env.example .env
+
+# 2. PostgreSQL local (cria o schema automaticamente na primeira subida,
+#    via backend/db/init/001_schema.sql)
+docker-compose up -d
+docker-compose ps                # confirmar que o container está "healthy"/"Up"
+
+# 3. Ambiente Python
+python -m venv .venv
+.venv\Scripts\activate           # Windows (PowerShell/cmd)
+# source .venv/bin/activate      # Linux/macOS
+pip install -r requirements.txt
+
+# 4. Rodar o ETL
+python -m pipeline.orchestrator --run-now --sample   # fixture local, determinístico — rode esse primeiro
+python -m pipeline.orchestrator --run-now             # baixa o CSV real da ANVISA e carrega no Postgres
+
+# 5. Subir a API
+uvicorn api.main:app --reload --port 8000
+```
+
+Com a API no ar, confirme em outro terminal:
+
+```bash
+curl http://localhost:8000/health
+curl "http://localhost:8000/medicamentos/busca?q=dipirona"
+```
+
+Ou abra `http://localhost:8000/docs` no navegador (Swagger).
+
+### Frontend (App Mobile)
+
+```bash
+cd frontend
+
+# 1. Variáveis de ambiente
+cp .env.example .env
+# edite EXPO_PUBLIC_API_BASE_URL em .env conforme onde o app vai rodar:
+#   - Emulador Android -> http://10.0.2.2:8000
+#   - Simulador iOS    -> http://localhost:8000 (funciona direto)
+#   - Celular físico (Expo Go) -> http://<IP-da-sua-máquina-na-rede>:8000 (mesma Wi-Fi do backend)
+
+# 2. Instalar dependências
+npm install
+
+# 3. Rodar
+npx expo start
+```
+
+Escaneie o QR code com o app Expo Go (Android) ou a câmera (iOS), ou pressione `a`/`i` no terminal para abrir num emulador/simulador já configurado. Digite um termo (ex.: "dipirona") na tela de busca para ver resultados vindos do backend local.
+
+### Solução de problemas comuns
+
+- **`docker-compose up` trava ou dá erro de conexão com a API do Docker**: normalmente é o Docker Desktop ainda inicializando no Windows (o backend WSL2 demora para subir após abrir o app, ou após o PC reiniciar). Confirme com `docker info`; se continuar falhando, rode `wsl --update` e reinicie o Docker Desktop.
+- **App não consegue buscar nada / erro de rede**: confira se `EXPO_PUBLIC_API_BASE_URL` em `frontend/.env` está certo para o jeito que você está rodando o app (emulador vs. dispositivo físico vs. simulador — ver tabela acima).
+
 ## Estrutura do Repositório
 
 ```

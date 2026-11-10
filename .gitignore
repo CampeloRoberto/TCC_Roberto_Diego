@@ -1,1 +1,14 @@
 Plano_Arquitetural.md
+
+# Backend (Python)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.env
+backend/data/raw/
+*.pyc
+
+# Frontend (React Native / Expo)
+frontend/node_modules/
+frontend/.expo/
+frontend/.env
