@@ -7,6 +7,9 @@ requests>=2.31
 pydantic-settings>=2.2
 unidecode>=1.3
 
+# Testes
+pytest>=8.0
+
 # Preparados para fontes futuras (CMED/RENAME) — ainda não usados nesta fatia
 openpyxl>=3.1
 pdfplumber>=0.11

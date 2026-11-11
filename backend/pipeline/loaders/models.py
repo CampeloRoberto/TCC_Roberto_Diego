@@ -26,14 +26,14 @@ class DimPrincipioAtivo(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     dcb: Mapped[str | None] = mapped_column(String(100))
-    nome_normalizado: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    nome_normalizado: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
 
 
 class DimFabricante(Base):
     __tablename__ = "dim_fabricante"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nome: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    nome: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     cnpj: Mapped[str | None] = mapped_column(String(18))
 
 
@@ -41,7 +41,7 @@ class DimFormaFarmaceutica(Base):
     __tablename__ = "dim_forma_farmaceutica"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    descricao: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
+    descricao: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
 
 
 class DimComponenteSus(Base):
@@ -60,8 +60,8 @@ class FatoMedicamento(Base):
     ggrem: Mapped[str | None] = mapped_column(String(20))
     ean: Mapped[str | None] = mapped_column(String(14))
     nome_comercial: Mapped[str] = mapped_column(Text, nullable=False)
-    concentracao: Mapped[str | None] = mapped_column(String(100))
-    tipo_medicamento: Mapped[str | None] = mapped_column(String(20))
+    concentracao: Mapped[str | None] = mapped_column(Text)
+    tipo_medicamento: Mapped[str | None] = mapped_column(Text)
     situacao_registro: Mapped[str | None] = mapped_column(String(30))
     preco_pf: Mapped[float | None] = mapped_column(Numeric(10, 2))
     preco_pmc: Mapped[float | None] = mapped_column(Numeric(10, 2))

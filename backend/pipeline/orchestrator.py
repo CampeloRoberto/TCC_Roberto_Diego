@@ -21,7 +21,11 @@ from pipeline.loaders.postgres_loader import load_anvisa_dataframe
 
 def run_anvisa(use_sample: bool) -> None:
     df = AnvisaExtractor(use_sample=use_sample).extract()
-    print(f"[anvisa] extraídas {len(df)} linhas válidas (Ativo + com registro, deduplicadas)")
+    n_ativos = int((df["situacao_registro"] == "Ativo").sum())
+    print(
+        f"[anvisa] extraídos {len(df)} registros únicos "
+        f"({n_ativos} ativos, {len(df) - n_ativos} inativos)"
+    )
 
     session = SessionLocal()
     try:
@@ -29,7 +33,11 @@ def run_anvisa(use_sample: bool) -> None:
     finally:
         session.close()
 
-    print(f"[anvisa] carregadas/atualizadas {resultado['upserted']} linhas em fato_medicamento")
+    print(
+        f"[anvisa] {resultado['processadas']} processados, "
+        f"{resultado['alteradas']} inseridos ou alterados em fato_medicamento "
+        f"(o resto não mudou desde a última carga)"
+    )
 
 
 def main() -> None:

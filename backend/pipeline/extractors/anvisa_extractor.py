@@ -14,7 +14,7 @@ ANVISA_CSV_URL (não assumida a partir da documentação antiga da ANVISA):
   esses campos só serão preenchidos quando CMED entrar (fk_forma_farmaceutica, ean,
   ggrem, preco_* ficam NULL nesta fatia).
 - SITUACAO_REGISTRO contém ``Ativo``/``Inativo`` (não ``VÁLIDO`` como documentação antiga
-  de 2020 da ANVISA sugeria).
+  de 2020 da ANVISA sugeria). Os dois são carregados (ver _filter_valid_rows).
 - EMPRESA_DETENTORA_REGISTRO vem como ``"<CNPJ> - <NOME DA EMPRESA>"`` numa única coluna.
 """
 
@@ -41,8 +41,6 @@ CATEGORIA_PARA_TIPO = {
     "genérico": "genérico",
     "similar": "similar",
 }
-
-PRINCIPIO_ATIVO_NAO_INFORMADO = "NÃO INFORMADO"
 
 
 class AnvisaExtractor(BaseExtractor):
@@ -79,9 +77,15 @@ class AnvisaExtractor(BaseExtractor):
 
     @staticmethod
     def _filter_valid_rows(df: pd.DataFrame) -> pd.DataFrame:
-        # Só produtos com registro ativo e com número de registro preenchido
-        # (o NUMERO_REGISTRO_PRODUTO é a chave única em fato_medicamento).
-        mask = (df["SITUACAO_REGISTRO"] == "Ativo") & df["NUMERO_REGISTRO_PRODUTO"].notna()
+        # Só linhas com número de registro (chave única em fato_medicamento) e
+        # nome do produto (coluna NOT NULL no banco).
+        #
+        # Registros "Inativo" NÃO são descartados aqui: se fossem, um produto
+        # que estava ativo no mês anterior e foi cancelado nunca seria
+        # atualizado no banco (nem no celular) e continuaria aparecendo como
+        # "Ativo" para sempre. Eles são carregados com situacao_registro =
+        # "Inativo" e a API filtra por padrão só os ativos.
+        mask = df["NUMERO_REGISTRO_PRODUTO"].notna() & df["NOME_PRODUTO"].notna()
         return df.loc[mask].copy()
 
     @staticmethod
@@ -117,7 +121,14 @@ class AnvisaExtractor(BaseExtractor):
                 "nome_comercial": df["NOME_PRODUTO"].str.strip(),
                 "tipo_medicamento": categoria_lower.map(CATEGORIA_PARA_TIPO).fillna(categoria_lower),
                 "situacao_registro": df["SITUACAO_REGISTRO"],
-                "principio_ativo_raw": df["PRINCIPIO_ATIVO"].fillna(PRINCIPIO_ATIVO_NAO_INFORMADO).str.strip(),
+                # Sem princípio ativo -> None (vira NULL no banco). Antes era
+                # "NÃO INFORMADO", o que fazia todos esses produtos
+                # compartilharem o mesmo fk_principio_ativo e aparecerem como
+                # "equivalentes" entre si.
+                "principio_ativo_raw": [
+                    p.strip() if isinstance(p, str) and p.strip() else None
+                    for p in df["PRINCIPIO_ATIVO"]
+                ],
                 "fabricante_nome_raw": empresa.map(nome_de),
                 "fabricante_cnpj": empresa.map(cnpj_de),
                 # Não existem nesta fonte — ficam para quando CMED for implementado.

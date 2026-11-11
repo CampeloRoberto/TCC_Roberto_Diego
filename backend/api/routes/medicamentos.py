@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,8 @@ def buscar(
     q: str = Query(..., min_length=2, description="nome comercial do medicamento"),
     fuzzy: bool = False,
     limit: int = Query(20, le=100),
-    offset: int = 0,
+    offset: int = Query(0, ge=0),
+    incluir_inativos: bool = Query(False, description="inclui registros com situação Inativo"),
     session: Session = Depends(get_session),
 ) -> BuscaResponse:
     base = (
@@ -38,6 +39,11 @@ def buscar(
         .outerjoin(DimPrincipioAtivo, FatoMedicamento.fk_principio_ativo == DimPrincipioAtivo.id)
         .outerjoin(DimFabricante, FatoMedicamento.fk_fabricante == DimFabricante.id)
     )
+
+    # O ETL carrega também os registros inativos (para o banco e o sync
+    # saberem que foram cancelados); a busca mostra só os ativos por padrão.
+    if not incluir_inativos:
+        base = base.filter(FatoMedicamento.situacao_registro == "Ativo")
 
     if fuzzy:
         # pg_trgm: `%` usa o threshold de similaridade configurado no Postgres
@@ -69,4 +75,5 @@ def buscar(
 def buscar_por_ean(ean: str):
     # TODO: só faz sentido quando o CMED extractor popular fato_medicamento.ean
     # (ver pipeline/extractors/cmed_extractor.py) — nenhuma linha tem EAN hoje.
-    raise NotImplementedError("Busca por EAN depende do CMED extractor, ainda não implementado.")
+    # 501 em vez de NotImplementedError, que virava erro 500 genérico.
+    raise HTTPException(status_code=501, detail="Busca por EAN depende do CMED extractor, ainda não implementado.")

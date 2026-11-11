@@ -84,6 +84,12 @@ python -m venv .venv
 # source .venv/bin/activate      # Linux/macOS
 pip install -r requirements.txt
 
+# 3.1 (só se o seu banco foi criado antes de 11/2026) aplicar a migração
+docker exec -i susmed_postgres psql -U susmed -d susmed < db/migrations/002_textos_sem_limite.sql
+
+# 3.2 Rodar os testes (não precisam de banco nem de internet)
+python -m pytest -v
+
 # 4. Rodar o ETL
 python -m pipeline.orchestrator --run-now --sample   # fixture local, determinístico — rode esse primeiro
 python -m pipeline.orchestrator --run-now             # baixa o CSV real da ANVISA e carrega no Postgres
