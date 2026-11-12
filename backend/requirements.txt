@@ -6,11 +6,12 @@ pandas>=2.2
 requests>=2.31
 pydantic-settings>=2.2
 unidecode>=1.3
+beautifulsoup4>=4.12
+openpyxl>=3.1
 
 # Testes
 pytest>=8.0
 
-# Preparados para fontes futuras (CMED/RENAME) — ainda não usados nesta fatia
-openpyxl>=3.1
+# Preparados para fontes futuras (RENAME) — ainda não usado nesta fatia
 pdfplumber>=0.11
 schedule>=1.2

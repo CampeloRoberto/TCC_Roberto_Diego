@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from api.schemas import BuscaResponse, MedicamentoBusca
+from api.schemas import BuscaResponse, MedicamentoBusca, MedicamentoDetalhe
 from pipeline.loaders.models import DimFabricante, DimPrincipioAtivo, FatoMedicamento, SessionLocal
 
 router = APIRouter(prefix="/medicamentos", tags=["medicamentos"])
@@ -35,6 +35,7 @@ def buscar(
             DimFabricante.nome.label("fabricante"),
             FatoMedicamento.tipo_medicamento,
             FatoMedicamento.situacao_registro,
+            FatoMedicamento.preco_pmc,
         )
         .outerjoin(DimPrincipioAtivo, FatoMedicamento.fk_principio_ativo == DimPrincipioAtivo.id)
         .outerjoin(DimFabricante, FatoMedicamento.fk_fabricante == DimFabricante.id)
@@ -65,15 +66,58 @@ def buscar(
             fabricante=linha.fabricante,
             tipo_medicamento=linha.tipo_medicamento,
             situacao_registro=linha.situacao_registro,
+            preco_pmc=linha.preco_pmc,
         )
         for linha in linhas
     ]
     return BuscaResponse(total=total, resultados=resultados)
 
 
-@router.get("/ean/{ean}")
-def buscar_por_ean(ean: str):
-    # TODO: só faz sentido quando o CMED extractor popular fato_medicamento.ean
-    # (ver pipeline/extractors/cmed_extractor.py) — nenhuma linha tem EAN hoje.
-    # 501 em vez de NotImplementedError, que virava erro 500 genérico.
-    raise HTTPException(status_code=501, detail="Busca por EAN depende do CMED extractor, ainda não implementado.")
+@router.get("/ean/{ean}", response_model=MedicamentoBusca)
+def buscar_por_ean(ean: str, session: Session = Depends(get_session)) -> MedicamentoBusca:
+    linha = (
+        session.query(
+            FatoMedicamento.id,
+            FatoMedicamento.nome_comercial,
+            DimPrincipioAtivo.nome_normalizado.label("principio_ativo"),
+            DimFabricante.nome.label("fabricante"),
+            FatoMedicamento.tipo_medicamento,
+            FatoMedicamento.situacao_registro,
+            FatoMedicamento.preco_pmc,
+        )
+        .outerjoin(DimPrincipioAtivo, FatoMedicamento.fk_principio_ativo == DimPrincipioAtivo.id)
+        .outerjoin(DimFabricante, FatoMedicamento.fk_fabricante == DimFabricante.id)
+        .filter(FatoMedicamento.ean == ean)
+        .first()
+    )
+    if linha is None:
+        raise HTTPException(status_code=404, detail="Nenhum medicamento com esse EAN.")
+    return MedicamentoBusca(**linha._asdict())
+
+
+# Precisa vir depois de /busca e /ean/{ean}: {id} é um curinga e o FastAPI
+# resolve rotas na ordem de declaração.
+@router.get("/{id}", response_model=MedicamentoDetalhe)
+def detalhe(id: int, session: Session = Depends(get_session)) -> MedicamentoDetalhe:
+    linha = (
+        session.query(
+            FatoMedicamento.id,
+            FatoMedicamento.nome_comercial,
+            DimPrincipioAtivo.nome_normalizado.label("principio_ativo"),
+            DimFabricante.nome.label("fabricante"),
+            FatoMedicamento.tipo_medicamento,
+            FatoMedicamento.situacao_registro,
+            FatoMedicamento.preco_pmc,
+            FatoMedicamento.preco_pf,
+            FatoMedicamento.data_vigencia_preco,
+            FatoMedicamento.ean,
+            FatoMedicamento.concentracao,
+        )
+        .outerjoin(DimPrincipioAtivo, FatoMedicamento.fk_principio_ativo == DimPrincipioAtivo.id)
+        .outerjoin(DimFabricante, FatoMedicamento.fk_fabricante == DimFabricante.id)
+        .filter(FatoMedicamento.id == id)
+        .first()
+    )
+    if linha is None:
+        raise HTTPException(status_code=404, detail="Medicamento não encontrado.")
+    return MedicamentoDetalhe(**linha._asdict())

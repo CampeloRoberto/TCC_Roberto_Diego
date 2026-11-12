@@ -1,15 +1,16 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { theme } from "../theme";
 import type { MedicamentoBusca } from "../services/api";
 
 type Props = {
   medicamento: MedicamentoBusca;
+  onPress?: () => void;
 };
 
-export function MedicamentoCard({ medicamento }: Props) {
+export function MedicamentoCard({ medicamento, onPress }: Props) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} disabled={!onPress} activeOpacity={0.7}>
       <View style={styles.header}>
         <View style={styles.cross} />
         <Text style={styles.nome}>{medicamento.nome_comercial}</Text>
@@ -20,10 +21,15 @@ export function MedicamentoCard({ medicamento }: Props) {
       {medicamento.fabricante ? (
         <Text style={styles.linha}>Fabricante: {medicamento.fabricante}</Text>
       ) : null}
-      {medicamento.tipo_medicamento ? (
-        <Text style={styles.tipo}>{medicamento.tipo_medicamento}</Text>
-      ) : null}
-    </View>
+      <View style={styles.rodape}>
+        {medicamento.tipo_medicamento ? (
+          <Text style={styles.tipo}>{medicamento.tipo_medicamento}</Text>
+        ) : null}
+        {medicamento.preco_pmc != null ? (
+          <Text style={styles.preco}>R$ {medicamento.preco_pmc.toFixed(2)}</Text>
+        ) : null}
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -57,8 +63,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: theme.colors.textMuted,
   },
-  tipo: {
+  rodape: {
     marginTop: theme.spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  tipo: {
     alignSelf: "flex-start",
     backgroundColor: theme.colors.border,
     color: theme.colors.primaryDark,
@@ -68,5 +79,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 2,
     borderRadius: theme.radius.sm,
+  },
+  preco: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.colors.primaryDark,
   },
 });

@@ -1,12 +1,17 @@
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { FlatList, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import type { RootStackParamList } from "../../App";
 import { MedicamentoCard } from "../components/MedicamentoCard";
 import { SearchBar } from "../components/SearchBar";
 import { buscarMedicamentos, type MedicamentoBusca } from "../services/api";
 import { theme } from "../theme";
 
-export function BuscaScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, "Busca">;
+
+export function BuscaScreen({ navigation }: Props) {
   const [resultados, setResultados] = useState<MedicamentoBusca[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -37,7 +42,9 @@ export function BuscaScreen() {
       <FlatList
         data={resultados}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <MedicamentoCard medicamento={item} />}
+        renderItem={({ item }) => (
+          <MedicamentoCard medicamento={item} onPress={() => navigation.navigate("Detalhe", { id: item.id })} />
+        )}
         contentContainerStyle={styles.lista}
         ListEmptyComponent={
           !loading && buscou
