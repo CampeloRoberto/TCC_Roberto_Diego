@@ -8,18 +8,18 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TABLE dim_principio_ativo (
     id               SERIAL PRIMARY KEY,
     dcb              VARCHAR(100),
-    nome_normalizado VARCHAR(200) NOT NULL UNIQUE
+    nome_normalizado TEXT NOT NULL UNIQUE  -- misturas de princípios passam de 200 caracteres
 );
 
 CREATE TABLE dim_fabricante (
     id   SERIAL PRIMARY KEY,
-    nome VARCHAR(200) NOT NULL UNIQUE,
+    nome TEXT NOT NULL UNIQUE,
     cnpj VARCHAR(18)
 );
 
 CREATE TABLE dim_forma_farmaceutica (
     id        SERIAL PRIMARY KEY,
-    descricao VARCHAR(150) NOT NULL UNIQUE
+    descricao TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE dim_componente_sus (
@@ -34,9 +34,9 @@ CREATE TABLE fato_medicamento (
     ggrem                   VARCHAR(20),
     ean                     VARCHAR(14),
     nome_comercial          TEXT NOT NULL,
-    concentracao            VARCHAR(100),
-    tipo_medicamento        VARCHAR(20),   -- referência, genérico, similar
-    situacao_registro       VARCHAR(30),
+    concentracao            TEXT,
+    tipo_medicamento        TEXT,          -- referência, genérico, similar, específico, biológico, ...
+    situacao_registro       VARCHAR(30),   -- Ativo / Inativo (os dois são carregados)
     preco_pf                NUMERIC(10, 2),
     preco_pmc               NUMERIC(10, 2),
     data_vigencia_preco     DATE,

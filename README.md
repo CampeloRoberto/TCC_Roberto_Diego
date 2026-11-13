@@ -84,22 +84,29 @@ python -m venv .venv
 # source .venv/bin/activate      # Linux/macOS
 pip install -r requirements.txt
 
-# 4. Rodar o ETL
-python -m pipeline.orchestrator --run-now --sample   # fixture local, determinístico — rode esse primeiro
-python -m pipeline.orchestrator --run-now             # baixa o CSV real da ANVISA e carrega no Postgres
+# 3.1 (só se o seu banco foi criado antes de 11/2026) aplicar a migração
+docker exec -i susmed_postgres psql -U susmed -d susmed < db/migrations/002_textos_sem_limite.sql
+
+# 3.2 Rodar os testes (não precisam de banco nem de internet)
+python -m pytest -v
+
+# 4. Rodar o ETL (ANVISA + CMED, nessa ordem — CMED só atualiza preço em produtos que a ANVISA já carregou)
+python -m pipeline.orchestrator --run-now --sample   # fixtures locais, determinístico — rode esse primeiro
+python -m pipeline.orchestrator --run-now             # baixa os dados reais (ANVISA + CMED) e carrega no Postgres
 
 # 5. Subir a API
-uvicorn api.main:app --reload --port 8000
+# --host 0.0.0.0 é necessário para o celular físico (Expo Go) conseguir alcançar a API pela rede Wi-Fi
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 Com a API no ar, confirme em outro terminal:
 
 ```bash
-curl http://localhost:8000/health
-curl "http://localhost:8000/medicamentos/busca?q=dipirona"
+curl http://localhost:8001/health
+curl "http://localhost:8001/medicamentos/busca?q=dipirona"
 ```
 
-Ou abra `http://localhost:8000/docs` no navegador (Swagger).
+Ou abra `http://localhost:8001/docs` no navegador (Swagger).
 
 ### Frontend (App Mobile)
 
@@ -109,9 +116,9 @@ cd frontend
 # 1. Variáveis de ambiente
 cp .env.example .env
 # edite EXPO_PUBLIC_API_BASE_URL em .env conforme onde o app vai rodar:
-#   - Emulador Android -> http://10.0.2.2:8000
-#   - Simulador iOS    -> http://localhost:8000 (funciona direto)
-#   - Celular físico (Expo Go) -> http://<IP-da-sua-máquina-na-rede>:8000 (mesma Wi-Fi do backend)
+#   - Emulador Android -> http://10.0.2.2:8001
+#   - Simulador iOS    -> http://localhost:8001 (funciona direto)
+#   - Celular físico (Expo Go) -> http://<IP-da-sua-máquina-na-rede>:8001 (mesma Wi-Fi do backend)
 
 # 2. Instalar dependências
 npm install
